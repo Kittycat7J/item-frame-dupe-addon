@@ -82,45 +82,94 @@ public class ItemFrameDupe extends Module {
     @EventHandler
     private void onTick(TickEvent.Pre event) {
         if (!Utils.canUpdate()) return;
-
+    
+        ClientPlayerInteractionManager c = mc.interactionManager;
+        assert mc.world != null;
+        assert mc.player != null;
+    
         if (timer > 0) {
             timer--;
             return;
+        } else {
+            timer = delay.get();
         }
-        else timer = delay.get();
-
+    
         FindItemResult itemResult = InvUtils.findInHotbar(Items.ITEM_FRAME, Items.GLOW_ITEM_FRAME);
         if (!itemResult.found()) {
             error("No item frames found in hotbar.");
             toggle();
             return;
         }
-
+    
+        // Remove the condition that checks for piston blocks
         for (BlockPos blockPos : getSphere(mc.player.getBlockPos(), distance.get(), distance.get())) {
-            if (mc.world.getBlockState(blockPos).getBlock() instanceof PistonBlock) {
-                if (shouldPlace(blockPos)) positions.add(blockPos);
-            }
+            if (shouldPlace(blockPos)) positions.add(blockPos);
         }
-
+    
         for (BlockPos blockPos : positions) {
-            if (!(mc.world.getBlockState(blockPos).getBlock() instanceof PistonBlock)) {
-                positions.remove(blockPos);
-                return;
+            assert mc.world != null;
+            if (mc.world.getBlockState(blockPos).getBlock() == Blocks.AIR) {
+                continue;
             }
-
             Direction direction = mc.world.getBlockState(blockPos).get(FacingBlock.FACING);
-            if (backOfPiston.get()){
+            if (backOfPiston.get()) {
                 direction = direction.getOpposite();
             }
             BlockPos placePos = getBlockPosFromDirection(direction, blockPos);
             BlockUtils.place(placePos, itemResult, rotate.get(), 50, true, true, swapBack.get());
-
+    
             if (delay.get() != 0) {
-                positions.clear();
                 break;
             }
         }
-    }
+    
+        // Disable the code that breaks the item frames
+        // placeThread = new Thread(() -> {
+        //     if(mc.player.getMainHandStack().getItem()==Items.ITEM_FRAME){
+        //         return;
+        //     }
+        //         ItemFrameEntity itemFrame;
+        //         Box box;
+        //         box = new Box(mc.player.getEyePos().add(-3, -3, -3), mc.player.getEyePos().add(3, 3, 3));
+        //         if (!mc.player.getWorld().getEntitiesByClass(ItemFrameEntity.class, box, itemFrameEntity -> true).isEmpty()) {
+        //             itemFrame = mc.player.getWorld().getEntitiesByClass(ItemFrameEntity.class, box, itemFrameEntity -> true).get(0);
+    
+        //             assert c != null;
+        //             c.interactEntity(mc.player, itemFrame, Hand.MAIN_HAND);
+        //               if (itemFrame.getHeldItemStack().getCount() > 0) {
+        //                 // Rotate the frame
+        //                   if(rotateItem.get()) {
+        //                       c.interactEntity(mc.player, itemFrame, Hand.MAIN_HAND);
+        //                   }
+        //                 // Delay before attacking the entity
+        //                 try {
+        //                     TimeUnit.MILLISECONDS.sleep(600);
+        //                 } catch (InterruptedException e) {
+        //                     e.printStackTrace();
+        //                 }
+    
+        //                   breakDelaytimer++;
+        //                   if (breakDelaytimer > breakDelay.get()) {
+        //                       c.attackEntity(mc.player, itemFrame);
+        //                       //Utils.leftClick();
+        //                       breakDelaytimer = 0;
+        //                   }
+        //                 try {
+        //                     TimeUnit.MILLISECONDS.sleep(100);
+        //                 } catch (InterruptedException e) {
+        //                     e.printStackTrace();
+        //                 }
+        //             }
+        //     }
+        // });
+        // placeThread.setName("PB-Thread");
+        // placeThread.start();
+}
+
+private boolean shouldPlace(BlockPos blockPos) {
+    // Always return true to place item frames on any block
+    return true;
+}
 
     private boolean shouldPlace(BlockPos pistonPos) {
         Direction direction = mc.world.getBlockState(pistonPos).get(FacingBlock.FACING);
