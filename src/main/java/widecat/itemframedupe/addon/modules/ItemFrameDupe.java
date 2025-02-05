@@ -12,7 +12,7 @@ import meteordevelopment.meteorclient.utils.player.FindItemResult;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.world.BlockUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.*;
+import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.item.Items;
@@ -28,19 +28,12 @@ public class ItemFrameDupe extends Module {
 
     private final Setting<Integer> distance = sgGeneral.add(new IntSetting.Builder()
         .name("distance")
-        .description("The max distance to search for pistons.")
+        .description("The max distance to search for blocks.")
         .min(1)
         .sliderMin(1)
         .defaultValue(5)
         .sliderMax(6)
         .max(6)
-        .build()
-    );
-
-    private final Setting<Boolean> backOfPiston = sgGeneral.add(new BoolSetting.Builder()
-        .name("back-of-piston")
-        .description("Whether to place on the front or back of piston")
-        .defaultValue(true)
         .build()
     );
 
@@ -67,7 +60,7 @@ public class ItemFrameDupe extends Module {
     );
 
     public ItemFrameDupe() {
-        super(Categories.Misc, "item-frame-dupe", "Assists with the item frame dupe by placing item frames on piston heads.");
+        super(Categories.Misc, "item-frame-dupe", "Assists with the item frame dupe by placing item frames on block surfaces.");
     }
 
     private int timer;
@@ -97,23 +90,23 @@ public class ItemFrameDupe extends Module {
         }
 
         for (BlockPos blockPos : getSphere(mc.player.getBlockPos(), distance.get(), distance.get())) {
-            if (mc.world.getBlockState(blockPos).getBlock() instanceof PistonBlock) {
+            Block block = mc.world.getBlockState(blockPos).getBlock();
+            if (block != Blocks.AIR) {
                 if (shouldPlace(blockPos)) positions.add(blockPos);
             }
         }
 
         for (BlockPos blockPos : positions) {
-            if (!(mc.world.getBlockState(blockPos).getBlock() instanceof PistonBlock)) {
+            Block block = mc.world.getBlockState(blockPos).getBlock();
+            if (block == Blocks.AIR) {
                 positions.remove(blockPos);
                 return;
             }
 
-            Direction direction = mc.world.getBlockState(blockPos).get(FacingBlock.FACING);
-            if (backOfPiston.get()){
-                direction = direction.getOpposite();
+            for (Direction direction : new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST}) {
+                BlockPos placePos = getBlockPosFromDirection(direction, blockPos);
+                BlockUtils.place(placePos, itemResult, rotate.get(), 50, true, true, swapBack.get());
             }
-            BlockPos placePos = getBlockPosFromDirection(direction, blockPos);
-            BlockUtils.place(placePos, itemResult, rotate.get(), 50, true, true, swapBack.get());
 
             if (delay.get() != 0) {
                 positions.clear();
@@ -122,22 +115,18 @@ public class ItemFrameDupe extends Module {
         }
     }
 
-    private boolean shouldPlace(BlockPos pistonPos) {
-        Direction direction = mc.world.getBlockState(pistonPos).get(FacingBlock.FACING);
-        if (backOfPiston.get()){
-            direction = direction.getOpposite();
-        }
-        BlockPos iFramePos = getBlockPosFromDirection(direction, pistonPos);
-
-        for (Entity entity : mc.world.getEntities()) {
-            if (entity instanceof ItemFrameEntity) {
-                BlockPos entityPos = new BlockPos(Math.floor(entity.getPos().x), Math.floor(entity.getPos().y), Math.floor(entity.getPos().z));
-                if (iFramePos.equals(entityPos)) {
-                    return false;
+    private boolean shouldPlace(BlockPos blockPos) {
+        for (Direction direction : new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST}) {
+            BlockPos placePos = getBlockPosFromDirection(direction, blockPos);
+            for (Entity entity : mc.world.getEntities()) {
+                if (entity instanceof ItemFrameEntity) {
+                    BlockPos entityPos = new BlockPos(Math.floor(entity.getPos().x), Math.floor(entity.getPos().y), Math.floor(entity.getPos().z));
+                    if (placePos.equals(entityPos)) {
+                        return false;
+                    }
                 }
             }
         }
-
         return true;
     }
 
@@ -163,14 +152,14 @@ public class ItemFrameDupe extends Module {
         return MathHelper.sqrt((float) (d * d + e * e + f * f));
     }
 
-    private BlockPos getBlockPosFromDirection(Direction direction, BlockPos orginalPos) {
+    private BlockPos getBlockPosFromDirection(Direction direction, BlockPos originalPos) {
         return switch (direction) {
-            case UP -> orginalPos.up();
-            case DOWN -> orginalPos.down();
-            case EAST -> orginalPos.east();
-            case WEST -> orginalPos.west();
-            case NORTH -> orginalPos.north();
-            case SOUTH -> orginalPos.south();
+            case UP -> originalPos.up();
+            case DOWN -> originalPos.down();
+            case EAST -> originalPos.east();
+            case WEST -> originalPos.west();
+            case NORTH -> originalPos.north();
+            case SOUTH -> originalPos.south();
         };
     }
 }
